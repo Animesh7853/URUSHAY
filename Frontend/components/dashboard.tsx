@@ -45,14 +45,20 @@ export function Dashboard() {
     })
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/upload', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_API_URL}/upload`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+          // Remove Content-Type header to let the browser set it with the correct boundary for FormData
+          'Origin': window.location.origin,
+        },
+        credentials: 'include', // Include cookies if needed
       })
 
       if (!response.ok) {
-        console.error('Error uploading file:', response.statusText)
-        return
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       // Check the Content-Type header to decide how to parse the response
@@ -95,7 +101,8 @@ export function Dashboard() {
         setDownloadLinks([url])
       }
     } catch (error) {
-      console.error('Error uploading file:', error)
+      console.error('Error uploading file:', error instanceof Error ? error.message : 'An unknown error occurred');
+      // You might want to show this error to the user through a toast notification
     }
   }
 
