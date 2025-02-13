@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, make_response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import io
@@ -8,12 +8,13 @@ from docs import modify_and_encrypt_pdf, modify_docx, mask_pptx_file, mask_excel
 from io import BytesIO
 
 app = Flask(__name__)
-CORS(app, resources={
-    r"/*": {  # Allow CORS for all routes
-        "origins": "*",  # Allow all origins
-        "methods": ["GET", "POST"],  # Allow both GET and POST methods
-        "allow_headers": ["Content-Type"],
-        "expose_headers": ["Content-Disposition", "Content-Length"]
+CORS(app, 
+     resources={r"/*": {
+         "origins": ["http://localhost:3000", "https://urushay-uxsw.vercel.app"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept"],
+        "expose_headers": ["Content-Disposition", "Content-Length", "Content-Type"],
+        "supports_credentials": True
     }
 })
 
@@ -25,8 +26,15 @@ def health_check():
     }), 200
 
 
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['POST', 'OPTIONS'])
 def upload_file():
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response
+
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file part'}), 400
@@ -72,12 +80,14 @@ def upload_file():
                 return jsonify({'error': 'Unsupported file type'}), 400
 
             processed_stream.seek(0)
-            return send_file(
+            response = make_response(send_file(
                 processed_stream,
                 mimetype=mimetype,
                 as_attachment=True,
                 download_name=processed_name
-            )
+            ))
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            return response
 
     except Exception as e:
         print(traceback.format_exc())  # Log the full error

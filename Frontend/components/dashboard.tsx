@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, FileSpreadsheet, Presentation, File, Image as ImageIcon, Download, Eye, Shield, LogOut } from "lucide-react"
+import { toast } from 'react-hot-toast'; // Add this import at the top
 
 export function Dashboard() {
   const [files, setFiles] = useState<{ [key: string]: File[] }>({
@@ -49,11 +50,9 @@ export function Dashboard() {
         method: 'POST',
         body: formData,
         headers: {
-          'Accept': 'application/json',
-          // Remove Content-Type header to let the browser set it with the correct boundary for FormData
-          'Origin': window.location.origin,
+          'Accept': 'application/json, application/octet-stream',
         },
-        credentials: 'include', // Include cookies if needed
+        credentials: 'include',
       })
 
       if (!response.ok) {
@@ -61,48 +60,38 @@ export function Dashboard() {
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      // Check the Content-Type header to decide how to parse the response
-      const contentType = response.headers.get('Content-Type') || ''
-      if (contentType.toLowerCase().includes('application/json')) {
-        // Handle unexpected JSON response (e.g. error handling).
-        const data = await response.json()
-        console.error('Error:', data.error)
-      } else {
-        // Process the response as a binary file.
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
+      // Get response headers
+      const contentType = response.headers.get('Content-Type') || '';
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const fileName = getFileNameFromDisposition(contentDisposition) || 'processed_file';
 
-        // Try to extract a dynamic filename from the Content-Disposition header.
-        const disposition = response.headers.get('Content-Disposition')
-        let fileName = getFileNameFromDisposition(disposition)
-        if (!fileName) {
-          // Fallback based on content type
-          if (contentType.includes('pdf')) {
-            fileName = 'processed_file.pdf'
-          } else if (contentType.includes('vnd.openxmlformats-officedocument.wordprocessingml.document') || contentType.includes('msword')) {
-            fileName = 'processed_file.doc'
-          } else if (contentType.includes('vnd.openxmlformats-officedocument.spreadsheetml.sheet') || contentType.includes('excel')) {
-            fileName = 'processed_file.xlsx'
-          } else if (contentType.includes('vnd.openxmlformats-officedocument.presentationml.presentation')) {
-            fileName = 'processed_file.ppt'
-          } else {
-            fileName = 'processed_file'
-          }
-        }
+      // Handle streaming response
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
 
-        // Create and trigger download.
-        const link = document.createElement('a')
-        link.href = url
-        link.download = fileName
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        // Optionally store the link to display a download button:
-        setDownloadLinks([url])
-      }
+      // Create download link
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL object
+      setTimeout(() => {
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 100);
+
+      // Update download links state
+      setDownloadLinks(prev => [...prev, downloadUrl]);
+
     } catch (error) {
-      console.error('Error uploading file:', error instanceof Error ? error.message : 'An unknown error occurred');
-      // You might want to show this error to the user through a toast notification
+      console.error('Full error details:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('Error uploading file:', errorMessage);
+      toast.error(`Upload failed: ${errorMessage}`);
     }
   }
 
