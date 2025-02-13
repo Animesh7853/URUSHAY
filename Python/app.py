@@ -16,10 +16,6 @@ CORS(app, resources={
         "expose_headers": ["Content-Disposition", "Content-Length"]
     }
 })
-app.config['UPLOAD_FOLDER'] = 'uploads/'
-
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 @app.route('/', methods=['GET'])
 def health_check():
@@ -88,10 +84,6 @@ def upload_file():
         return jsonify({'error': str(e)}), 500
 
     return jsonify({'error': 'Unknown error occurred'}), 500
-
-@app.route('/uploads/<filename>', methods=['GET'])
-def download_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
