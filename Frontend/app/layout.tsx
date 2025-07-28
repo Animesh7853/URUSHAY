@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Urushya - PII Detection System",
-  description: "Generated on React with TypeScript",
+  description: "Generated on ReactJs with TypeScript",
 };
 
 export default function RootLayout({
